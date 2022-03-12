@@ -1,4 +1,4 @@
 - [:octocat: 首页](/README)
 - :memo: 目录
    - 项目笔记   
-       - [第1节：lottery](/md/lottery-project/)
+       - [第1节：lottery](/md/lottery-project/Lottery项目笔记.md)
