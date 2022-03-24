@@ -1,8 +1,10 @@
 # 基础知识
 
- * 常见对象类型
+## 常见对象类型
 
-   * PO(Persistant Object) 持久对象
+> VO 是最终返给前端的 ，  DTO是在请求交互过程中传递的    这样就清晰了   POJO   就是表映射成的最干净的对象   
+
+* PO(Persistant Object) 持久对象
 
 
      用于表示数据库中的一条记录映射成的 java 对象。PO 仅仅用于表示数据，没有任何数据操作。通常遵守 Java Bean 的规范，拥有 getter/setter 方法。
@@ -113,16 +115,12 @@ MyBatis: ORM框架, 对象关系映射
 被注解的方法，在对象加载完依赖注入后执行。
 
 * `@Service` `@Resource`
-
 * `Bean` 
-
 * `@Configuration`
-
 * `Mapper` 
-
 * `Controller`
-
 * `@Transactional(rollbackFor = Exception.class)`
+* `@EnableCaching`
 
 > **同一个类中方法调用，导致@Transactional失效**
 >
@@ -139,6 +137,16 @@ MyBatis: ORM框架, 对象关系映射
 > 
 
 * `@Before`
+
+## Maven
+
+下载不好使了: 
+
+在项目根目录下; 
+
+```
+mvn dependency:resolve -Dclassifier=sources
+```
 
 
 
@@ -1353,6 +1361,193 @@ public void takeActivity(Long activityId, String activityName, Long strategyId, 
 
 
 
+# 13 规则引擎量化人群参与活动
+
+
+
+**组合模式** 搭建用于量化人群的规则, 用于用户参与活动之前, 用过规则引擎过滤性别/年龄/...
+
+**表**: 
+
+**组合**: 逻辑过滤器 + 引擎执行器
+
+
+
+* `Repository`接口的实现全部从`@Component`换成了`@Repository`
+
+## 实现
+
+![](https://i0.hdslb.com/bfs/album/f1efb0fe1e11e0b43239b26d1c9c948f3bc8aca1.png)https://i0.hdslb.com/bfs/album/f1efb0fe1e11e0b43239b26d1c9c948f3bc8aca1.png
+
+![](https://i0.hdslb.com/bfs/album/3671c303f2287b55216006188b705d936cd22e2c.png)
+
+<img src="https://i0.hdslb.com/bfs/album/b49dbbd70d5e240669007f94dcf134c26d4419cb.png@1e_1c.webp" style="zoom: 150%;" />
+
+## 思考
+
+之前的流程是, 先领活动号`Partake`, 看`left_count`是不是大于0, 领到活动号才能参会抽奖
+
+现在是再在前面加一步, 根据属性获取可以参加的活动ID
+
+
+
+# 14 VO2DTO
+
+重点 : 使用`MapStruct`
+
+`IMapping` :`MapStruct `对象映射接口, 在编译期生成需要手写的getter/setter
+
+* 对象转化操作
+
+  隐藏领域层的信息, DTO转换(防污)
+
+```java
+@MapperConfig
+public interface IMapping<SOURCE, TARGET> {
+
+    /**
+     * 映射同名属性
+     * @param var1 源
+     * @return     结果
+     */
+    @Mapping(target = "createTime", dateFormat = "yyyy-MM-dd HH:mm:ss")
+    TARGET sourceToTarget(SOURCE var1);
+
+    /**
+     * 映射同名属性，反向
+     * @param var1 源
+     * @return     结果
+     */
+    @InheritInverseConfiguration(name = "sourceToTarget")
+    SOURCE targetToSource(TARGET var1);
+
+    /**
+     * 映射同名属性，集合形式
+     * @param var1 源
+     * @return     结果
+     */
+    @InheritConfiguration(name = "sourceToTarget")
+    List<TARGET> sourceToTarget(List<SOURCE> var1);
+
+    /**
+     * 反向，映射同名属性，集合形式
+     * @param var1 源
+     * @return     结果
+     */
+    @InheritConfiguration(name = "targetToSource")
+    List<SOURCE> targetToSource(List<TARGET> var1);
+
+    /**
+     * 映射同名属性，集合流形式
+     * @param stream 源
+     * @return       结果
+     */
+    List<TARGET> sourceToTarget(Stream<SOURCE> stream);
+
+    /**
+     * 反向，映射同名属性，集合流形式
+     * @param stream 源
+     * @return       结果
+     */
+    List<SOURCE> targetToSource(Stream<TARGET> stream);
+
+}
+```
+
+运行前, 编译时完成代码的生成
+
+```java
+    @Override
+    public PrizeDTO sourceToTarget(DrawPrizeVO var1) {
+        if ( var1 == null ) {
+            return null;
+        }
+
+        String userId = null;
+
+        userId = var1.getuId();
+
+        PrizeDTO prizeDTO = new PrizeDTO( userId );
+
+        prizeDTO.setPrizeId( var1.getPrizeId() );
+        prizeDTO.setPrizeType( var1.getPrizeType() );
+        prizeDTO.setPrizeName( var1.getPrizeName() );
+        prizeDTO.setPrizeContent( var1.getPrizeContent() );
+        prizeDTO.setStrategyMode( var1.getStrategyMode() );
+        prizeDTO.setGrantType( var1.getGrantType() );
+        prizeDTO.setGrantDate( var1.getGrantDate() );
+
+        return prizeDTO;
+    }
+
+    @Override
+    public DrawPrizeVO targetToSource(PrizeDTO var1) {
+        if ( var1 == null ) {
+            return null;
+        }
+
+        DrawPrizeVO drawPrizeVO = new DrawPrizeVO();
+
+        drawPrizeVO.setPrizeId( var1.getPrizeId() );
+        drawPrizeVO.setPrizeType( var1.getPrizeType() );
+        drawPrizeVO.setPrizeName( var1.getPrizeName() );
+        drawPrizeVO.setPrizeContent( var1.getPrizeContent() );
+        drawPrizeVO.setStrategyMode( var1.getStrategyMode() );
+        drawPrizeVO.setGrantType( var1.getGrantType() );
+        drawPrizeVO.setGrantDate( var1.getGrantDate() );
+
+        return drawPrizeVO;
+    }
+```
+
+
+
+## 踩坑
+
+1. 
+
+```java
+public RuleQuantificationCrowdResult doRuleQuantificationCrowd(DecisionMatterReq req) {
+    // 1. 量化决策
+    EngineResult engineResult = engineFilter.process(req);
+
+    if (!engineResult.isSuccess()) {
+        return new RuleQuantificationCrowdResult(Constants.ResponseCode.RULE_ERR.getCode(),Constants.ResponseCode.RULE_ERR.getInfo());
+    }
+    // 2. 封装结果
+    RuleQuantificationCrowdResult ruleQuantificationCrowdResult = new RuleQuantificationCrowdResult(Constants.ResponseCode.SUCCESS.getCode(), Constants.ResponseCode.SUCCESS.getInfo());
+    ruleQuantificationCrowdResult.setActivityId(Long.valueOf(engineResult.getNodeValue()));
+    return ruleQuantificationCrowdResult;
+}
+```
+
+用户不能直接调用领域层的抽奖接口, 只能调用`LotteryActivityBooth`下面的`doQuantificationDraw`, 获取系统分配的TreeNode id , 通过树id找 Activity id, 可参加活动.
+
+这里面代码有点小bug, 需要修改下: 
+
+`LotteryActivityBooth`下面`activityProcess.doRuleQuantificationCrowd`这个方法
+
+调用`ActivityProcessImpl`下的 `RuleQuantificationCrowd`方法 : `EngineResult engineResult = engineFilter.process(req);`
+
+调用`RuleEngineHandler`下的`EngineResult process(DecisionMatterReq matter) `方法,
+
+这里返回的Result, 没有setSuccess, 默认false, 导致抽奖一直失败
+
+2. `user_take_activity_count`里面更新left_count的时候, 把updta_date也同步更新
+
+
+
+
+
+# 15 -Kafka
+
+
+
+## 踩坑
+
+1. 地址名太长无法启动
+2. ` Socket server failed to bind to 0.0.0.0:9092: Address already in use: bind.`
+3. ` Timed out waiting for connection while in state: CONNECTING`
 
 
 
@@ -1362,20 +1557,710 @@ public void takeActivity(Long activityId, String activityName, Long strategyId, 
 
 
 
+![](https://i0.hdslb.com/bfs/album/93ed44c1232bed99d70eda8fcad9831b8e52aa8e.png)
+
+
+
+* zookeeper
+
+  ```
+  C:\Users\liuqs\kafka_2.13-3.1.0>bin\windows\zookeeper-server-start.bat config\zookeeper.properties
+  ```
+
+  
+
+* 启动
+
+  ```
+  bin/kafka-server-start.sh -daemon config/server.properties
+  ```
+
+  
+
+* consumer
+
+  ```
+  bin/kafka-console-producer.sh --broker-list localhost:9092 --topic Hello-Kafka
+  ```
+
+  
+
+  
+
+* producer
+
+* topic
+
+  新版本的kafka不再使用zookeeper创建topic/comsumer/producer, 这里的端口和`server.properties`里的保持一致.
+
+  
+
+  创建
+  
+  ```java
+  .\bin\windows\kafka-topics.bat --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic lottery_activity_partake
+  ```
+  
+  	查看
+
+```
+ .\bin\windows\kafka-topics.bat --list --bootstrap-server localhost:9092
+```
+
+
+
+# 16 使用MQ解耦发货流程
+
+![](https://i0.hdslb.com/bfs/album/8dcddb005e567aacdd7116e8f9bdfe2737a5e134.png)
+
+创建`producer`类, 负责执行topic, 实现`sendLotteryInvoice`方法, 将`VO`实例序列化, 通过
+
+`kafkaTemplate.send(TOPIC_INVOICE, objJson);`方法, 发送出去.
+
+```java
+@Component
+public class KafkaProducer {
+    private Logger logger = LoggerFactory.getLogger(KafkaProducer.class);
+
+    @Resource
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    /**
+     * MQ主题：中奖发货单
+     *
+     * 启动zk：bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
+     * 启动kafka：bin/kafka-server-start.sh -daemon config/server.properties
+     * 创建topic：bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic lottery_invoice
+     */
+    public static final String TOPIC_INVOICE = "lottery_invoice";
+
+    /**
+     * 发送中奖物品发货单消息
+     *
+     * @param invoice 发货单
+     */
+    public ListenableFuture<SendResult<String, Object>> sendLotteryInvoice(InvoiceVO invoice) {
+        String objJson = JSON.toJSONString(invoice);
+        logger.info("发送MQ消息 topic：{} bizId：{} message：{}", TOPIC_INVOICE, invoice.getuId(), objJson);
+
+        // 发送消息
+        return  kafkaTemplate.send(TOPIC_INVOICE, objJson);
+
+    }
+}
+```
+
+* 抽奖流程的解耦
+
+  任务走到即将发货时, buildVO, 调用producer发送MQ消息
+
+  定义好,成功/失败操作的callback, 对库进行更新
+
+  ```java
+  public DrawProcessResult doDrawProcess(DrawProcessReq req) {
+      // 1. 领取活动
+      
+      // 2. 执行抽奖
+  
+      // 3. 结果落库
+  
+      // 4. 发送MQ，触发发奖流程
+      InvoiceVO invoiceVO = buildInvoiceVO(drawOrderVO);
+      ListenableFuture<SendResult<String, Object>> future = kafkaProducer.sendLotteryInvoice(invoiceVO);
+      future.addCallback(new ListenableFutureCallback<SendResult<String, Object>>() {
+          @Override
+          public void onSuccess(SendResult<String, Object> stringObjectSendResult) {
+              // 4.1 MQ 消息发送完成，更新数据库表 user_strategy_export.mq_state = 1
+              activityPartake.updateInvoiceMqState(invoiceVO.getuId(), invoiceVO.getOrderId(), Constants.MQState.COMPLETE.getCode());
+          }
+          @Override
+          public void onFailure(Throwable throwable) {
+              // 4.2 MQ 消息发送失败，更新数据库表 user_strategy_export.mq_state = 2 【等待定时任务扫码补偿MQ消息】
+              activityPartake.updateInvoiceMqState(invoiceVO.getuId(), invoiceVO.getOrderId(), Constants.MQState.FAIL.getCode());
+          }
+      });
+  
+      // 5. 返回结果
+      return new DrawProcessResult(Constants.ResponseCode.SUCCESS.getCode(), Constants.ResponseCode.SUCCESS.getInfo(), drawAwardVO);
+  }
+  
+  ```
+
+  
+
+* 创建消费者类, 监听来自producer的消息
+
+  反序列化, 得到实例, 完成发货操作, 异步处理.
+
+  ```java
+  @Component
+  public class LotteryInvoiceListener {
+  
+      private Logger logger = LoggerFactory.getLogger(LotteryInvoiceListener.class);
+  
+      @Resource
+      private DistributionGoodsFactory distributionGoodsFactory;
+  
+      @KafkaListener(topics = "lottery_invoice", groupId = "lottery")
+      public void onMessage(ConsumerRecord<?, ?> record, Acknowledgment ack, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+          Optional<?> message = Optional.ofNullable(record.value());
+  
+          // 1. 判断消息是否存在
+          if (!message.isPresent()) {
+              return;
+          }
+  
+          // 2. 处理 MQ 消息
+          try {
+              // 1. 转化对象（或者你也可以重写Serializer<T>）
+              InvoiceVO invoiceVO = JSON.parseObject((String) message.get(), InvoiceVO.class);
+  
+              // 2. 获取发送奖品工厂，执行发奖
+              IDistributionGoods distributionGoodsService = distributionGoodsFactory.getDistributionGoodsService(invoiceVO.getAwardType());
+              DistributionRes distributionRes = distributionGoodsService.doDistribution(new GoodsReq(invoiceVO.getuId(), invoiceVO.getOrderId(), invoiceVO.getAwardId(), invoiceVO.getAwardName(), invoiceVO.getAwardContent()));
+  
+              Assert.isTrue(Constants.AwardState.SUCCESS.getCode().equals(distributionRes.getCode()), distributionRes.getInfo());
+  
+              // 3. 打印日志
+              logger.info("消费MQ消息，完成 topic：{} bizId：{} 发奖结果：{}", topic, invoiceVO.getuId(), JSON.toJSONString(distributionRes));
+  
+              // 4. 消息消费完成
+              ack.acknowledge();
+          } catch (Exception e) {
+              // 发奖环节失败，消息重试。所有到环节，发货、更新库，都需要保证幂等。
+              logger.error("消费MQ消息，失败 topic：{} message：{}", topic, message.get());
+              throw e;
+          }
+      }
+  
+  }
+  ```
+
+  
+
+# 17-使用`xxl-job`定时扫描
+
+`xxl-job`的使用; 
+
+* 后台启动admin
+* 给自己的任务注入`@XxlJob("lotteryActivityStateJobHandler")`
+* 在后台定期执行管理
+
+## 具体代码
+
+10条10条扫描
+
+```java
+    @XxlJob("lotteryActivityStateJobHandler")
+    public void lotteryActivityStateJobHandler() throws Exception{
+        logger.info("扫描活动状态 Begin");
+
+        //not sure why id == 0
+        List<ActivityVO> activityVOList = activityDeploy.scanToDoActivityList(0L);
+        if(activityVOList.isEmpty()){
+            logger.info("扫描活动状态 End 暂无符合需要扫描的活动列表");
+            return;
+        }
+
+        // 4：通过
+        // 5：运行(活动中)
+
+        while(!activityVOList.isEmpty()){
+            for(ActivityVO activityVO : activityVOList){
+                Integer state = activityVO.getState();
+                switch (state){
+                    // 活动状态为审核通过，在临近活动开启时间前，审核活动为活动中。
+                    // 在使用活动的时候，需要依照活动状态和时间两个字段进行判断和使用。
+                    case 4:
+                        Result state4Result = stateHandler.doing(activityVO.getActivityId(), Constants.ActivityState.PASS);
+                        logger.info("扫描活动状态为活动中 结果：{} activityId：{} activityName：{} creator：{}",
+                                    JSON.toJSONString(state4Result), activityVO.getActivityId(),
+                                    activityVO.getActivityName(), activityVO.getCreator());
+                        break;
+                    // 扫描时间已过期的活动，从活动中状态变更为关闭状态
+                    // 【这里也可以细化为2个任务来处理，也可以把时间判断放到数据库中操作】
+                    case 5:
+                        if(activityVO.getEndDateTime().before(new Date())){
+                            Result state5Result = stateHandler.close(activityVO.getActivityId(), Constants.ActivityState.DOING);
+                            logger.info("扫描活动状态为关闭 结果：{} activityId：{} activityName：{} creator：{}",
+                                        JSON.toJSONString(state5Result), activityVO.getActivityId(),
+                                        activityVO.getActivityName(), activityVO.getCreator());
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            // 获取集合中最后一条记录，继续扫描后面10条记录
+            ActivityVO activityVO = activityVOList.get(activityVOList.size() - 1);
+            activityVOList = activityDeploy.scanToDoActivityList(activityVO.getId());
+        }
+
+
+        logger.info("扫描活动状态 End");
+    }
+
+```
+
+
+
+## 结果
+
+
+
+启动springboot项目
+
+在xxl-job管理中心里, 注册执行器和任务管理, 对表定期扫描
+
+* 扫描审核通过, 还未进行的活动, 变成进行中
+* 扫描已经过期, 但认为进行中的任务, 置为结束
+
+![](https://i0.hdslb.com/bfs/album/e4d9db0a0a21cbfab56e3be4610a76a99d02db17.png)
+
+![](https://i0.hdslb.com/bfs/album/d5259d21ae2d8ecd2795693eb69c97899372ab41.png)
+
+```java
+2022-03-20 22:42:22.425  INFO 7960 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描活动状态 Begin
+2022-03-20 22:42:22.879  INFO 7960 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描活动状态为活动中 结果：{"code":"成功","info":"活动变更活动中完成"} activityId：100002 activityName：活动名02 creator：xiaofuge
+2022-03-20 22:42:22.898  INFO 7960 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描活动状态为关闭 结果：{"code":"成功","info":"活动关闭成功"} activityId：100003 activityName：活动3 creator：lqs
+2022-03-20 22:42:22.915  INFO 7960 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描活动状态 End
+```
+
+
+
+# 18-扫描库表补偿发货单MQ消息
+
+消息的接受和发送: 需要保证幂等性
+
+设置, 对哪一个库, 哪一个表进行扫描, 
+
+![](https://i0.hdslb.com/bfs/album/5f87ad4c28b848343fbaeada199636d97e4ea79b.png)****
+
+- 这一部分就是使用任务扫描库表的操作，在 `activityPartake.scanInvoiceMqState` 方法中，会设定路由，如下：
+
+```
+@Override
+public List<InvoiceVO> scanInvoiceMqState(int dbCount, int tbCount) {
+    try {
+        // 设置路由
+        dbRouter.setDBKey(dbCount);
+        dbRouter.setTBKey(tbCount);
+        // 查询数据
+        return userTakeActivityRepository.scanInvoiceMqState();
+    } finally {
+        dbRouter.clear();
+    }
+}
+```
+
+- 另外这里有一点是关于分布式设计的思考，一般我们运行在线上的任务都是由多个实例共同完成，所以这里我们配置里一个任务的参数，已达到可以满足每个任务实例只跑自己需要扫描的库表。
+
+  翻译: 可以配置多个不同的任务, 每个任务只扫描一个库, 分摊负载
+
+
+
+```java
+2022-03-21 00:29:07.032  INFO 41324 --- [      Thread-18] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.0.0
+2022-03-21 00:29:07.032  INFO 41324 --- [      Thread-18] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 8cb0a5e9d3441962
+2022-03-21 00:29:07.032  INFO 41324 --- [      Thread-18] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1647793747032
+2022-03-21 00:29:07.036  INFO 41324 --- [ad | producer-1] org.apache.kafka.clients.Metadata        : [Producer clientId=producer-1] Cluster ID: kY8n_6u_SLCy9oy9qEzrcw
+2022-03-21 00:29:07.046  INFO 41324 --- [      Thread-18] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444541565086367744,"prizeContent":"Code","prizeId":"5","prizeName":"Book","prizeType":1,"uId":"fustack"}
+2022-03-21 00:29:07.046  INFO 41324 --- [      Thread-18] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444810184030633984,"prizeContent":"Code","prizeId":"4","prizeName":"AirPods","prizeType":1,"uId":"fustack"}
+2022-03-21 00:29:07.046  INFO 41324 --- [      Thread-18] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444820311156670464,"prizeContent":"Code","prizeId":"2","prizeName":"iphone","prizeType":1,"uId":"fustack"}
+2022-03-21 00:29:07.067  INFO 41324 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：1 扫描数：0
+2022-03-21 00:29:07.084  INFO 41324 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：2 扫描数：0
+2022-03-21 00:29:07.101  INFO 41324 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：3 扫描数：0
+2022-03-21 00:29:07.102  INFO 41324 --- [      Thread-18] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 完成 param：["1","2"]
+2022-03-21 00:29:07.116  INFO 41324 --- [ntainer#0-0-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-21 00:29:07.140  INFO 41324 --- [ntainer#0-0-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-21 00:29:07.166  INFO 41324 --- [ntainer#0-0-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-21 00:29:07.186  INFO 41324 --- [ntainer#0-0-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-21 00:29:07.188  INFO 41324 --- [ntainer#0-0-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-21 00:29:07.211  INFO 41324 --- [ntainer#0-0-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-21 00:29:07.216  INFO 41324 --- [ntainer#0-0-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-21 00:29:07.236  INFO 41324 --- [ntainer#0-0-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+```
 
 
 
 
 
+# 19
+
+
+
+锁库存编号
+
+![](https://i0.hdslb.com/bfs/album/87efa0ced90d8f922a938cba616fbd05d1bcc3df.png)
+
+
+
+## 实现
+
+1. 滑块库存锁设计
+
+    **![](https://i0.hdslb.com/bfs/album/d1488551d1f71b75ae94c3d902c48da0a5858084.png)**
+    
+2. 滑块库存锁实现
+
+    1. 库存扣减操作
+    2. 并发锁删除处理
+
+3. 活动秒杀流程处理
+
+4. 发送MQ消息, 处理数据一致性
+
+5. 活动领取记录MQ消费
+
+## Docker 配置
+
+* 启动docker desktop
+
+* 拉取镜像
+
+* 运行 启动容器, 并进行端口映射
+
+  ```
+  docker run --name redis -p 6379:6379 -d redis
+  ```
+
+* 启动redis
+
+  ```
+  docker start redis
+  ```
 
 
 
 
+## 细节
+
+* Redis配置类
+
+  * `@EnableCaching`
+
+  * `RedisConnectionFactory`
+
+  * `RedisTemplate`
+
+  * `Jackson2JsonRedisSerializer`
+
+  * `ObjectMap`
+
+    ```java
+    objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+    ```
+
+    ALL: getter/setter/field(类的data member, 一般非static)
+
+    ANY: private + public + protected
+
+  * s
+
+  给5大类型的数据配置`SetOperations<String, Object>`
+
+  ```java
+  @Bean
+  public SetOperations<String, Object> setOperations(RedisTemplate<String, Object> redisTemplate){
+      return redisTemplate.opsForSet();
+  }
+  
+  ```
+
+  
+
+  
+
+* Redis工具类
+
+  对5大类型数据进行操作
+
+  ```java
+  /**
+           * 分布式锁
+           * @param key               锁住的key
+           * @param lockExpireMils    锁住的时长。如果超时未解锁，视为加锁线程死亡，其他线程可夺取锁
+           * @return
+           */
+  public boolean setNx(String key, Long lockExpireMils) {
+      return (boolean) redisTemplate.execute((RedisCallback) connection -> {
+          //获取锁
+          return connection.setNX(key.getBytes(), String.valueOf(System.currentTimeMillis() + lockExpireMils + 1).getBytes());
+      });
+  }
+  ```
+
+  
+
+  
+
+  ```java
+      /**
+       * 使用Redis的消息队列
+       *
+       * @param channel
+       * @param message 消息内容
+       */
+      public void convertAndSend(String channel, Object message) {
+          redisTemplate.convertAndSend(channel, message);
+      }
+  ```
+
+  `BoundListOperations`
+
+  ```java
+  /**
+   * 将数据添加到Redis的list中（从右边添加）
+   *
+   * @param listKey
+   * @param timeout 有效时间
+   * @param unit    时间类型
+   * @param values  待添加的数据
+   */
+  public void addToListRight(String listKey, long timeout, TimeUnit unit, Object... values) {
+      //绑定操作
+      BoundListOperations<String, Object> boundValueOperations = redisTemplate.boundListOps(listKey);
+      //插入数据
+      boundValueOperations.rightPushAll(values);
+      //设置过期时间
+      boundValueOperations.expire(timeout, unit);
+  }
+  
+  /**
+   * 根据起始结束序号遍历Redis中的list
+   *
+   * @param listKey
+   * @param start   起始序号
+   * @param end     结束序号
+   * @return
+   */
+  public List<Object> rangeList(String listKey, long start, long end) {
+      //绑定操作
+      BoundListOperations<String, Object> boundValueOperations = redisTemplate.boundListOps(listKey);
+      //查询数据
+      return boundValueOperations.range(start, end);
+  }
+  
+  /**
+   * 弹出右边的值 --- 并且移除这个值
+   *
+   * @param listKey
+   */
+  public Object rightPop(String listKey) {
+      //绑定操作
+      BoundListOperations<String, Object> boundValueOperations = redisTemplate.boundListOps(listKey);
+      return boundValueOperations.rightPop();
+  }
+  
+  ```
+
+
+* BaseActivityPartake
+
+  6步逻辑,  这里是怎么使用redis的呢?
+
+  ```java
+  // 4. 扣减活动库存，通过Redis【活动库存扣减编号，作为锁的Key，缩小颗粒度】 Begin
+  StockResult subtractionActivityResult = this.subtractionActivityStockByRedis(req.getuId(), req.getActivityId(), activityBillVO.getStockCount());
+  if (!Constants.ResponseCode.SUCCESS.getCode().equals(subtractionActivityResult.getCode())) {
+      this.recoverActivityCacheStockByRedis(req.getActivityId(), subtractionActivityResult.getStockKey(), subtractionActivityResult.getCode());
+  }
+  
+  // 5. 领取活动信息【个人用户把活动信息写入到用户表】
+  Long takeId = idGeneratorMap.get(Constants.Ids.SnowFlake).nextId();
+  Result grabResult = this.grabActivity(req, activityBillVO, takeId);
+  if (!Constants.ResponseCode.SUCCESS.getCode().equals(grabResult.getCode())) {
+      this.recoverActivityCacheStockByRedis(req.getActivityId(), subtractionActivityResult.getStockKey(), grabResult.getCode());
+      return new PartakeResult(grabResult.getCode(), grabResult.getInfo());
+  }
+  
+  // 6. 扣减活动库存，通过Redis End
+  this.recoverActivityCacheStockByRedis(req.getActivityId(), subtractionActivityResult.getStockKey(), Constants.ResponseCode.SUCCESS.getCode());
+  
+  ```
+
+* Kafak消费完需要确认, 不然消息一直存在
+
+  ````
+  // 4. 消息消费完成
+  ack.acknowledge();
+  ```
 
 
 
+## 流程
+
+* redis的使用
+
+  在redis中缓存 `lottery_activity_stock_usage_count_100001` 代表 `10001`号活动的使用量(参与数), 减去初始的总库存, 为当前的剩余库存. 
+
+  如果计算得到的剩余库存, 小于库中记录的剩余库存, 完成更新. 如果`stockUsedCount > stockCount`恢复原来的使用量, 
+
+  同时每次更新时(在redis缓存里),  给每一个用量`SetNx`加一个`lottery_activity_stock_usage_count_100001_xxx`分布式锁, 如果没拿到锁, 用户秒杀失败. 同时删除这个key对应的锁. 所以我们的策略是允许少卖, 不能超卖.
+
+  
+
+  这里有一点不太确定: , 
+
+* MQ
+
+  每次抽奖完成后, 显示已经完成抽奖, 后台会生成一个`mq_state`为`0`的`user_strategy_export`
+
+  XXL负责定期扫描指定的库/表, 把未发送且超时(`0`) 和 发送失败(`2`)的, 全部放到MQ里, 用于处理
+
+  s
+
+  * 创建`KafkaProducer`类, 给不同topic配置不同的send方法, 在需要异步处理的时候(发奖)的时候, 调用方法.
+
+    调用的时候, 给`send`的返回值`feature`加上`callBack`, 消费成功/失败-更新落库, 异步处理的消息被listener消费后, 会自动调用`callBack`函数
+
+  * 给不同的Kafka消息创建对应的`Listener`类,  
+
+    对message反序列化, 得到VO对象, 取出里面的信息, 进行消息的异步处理(发奖)
+
+    记得最后要`ack.acknowledge()`, 代表已经消费了这个message
+
+    ```java
+    @KafkaListener(topics = KafkaProducer.TOPIC_INVOICE, groupId = "lottery")
+    public void onMessage(ConsumerRecord<?, ?> record, Acknowledgment ack, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+         //处理
+        ack.acknowledge();
+    }
+    ```
+
+* XxlJob
+
+  设置好之后, 加上`@XxlJob("lotteryOrderMQStateJobHandler")`完成配置, 可以定期对库进行扫描
+
+  如果找到:
+
+  ​	可以参加的活动:  完成活动状态流转
+
+  ​	没有发货的单号:  发送MQ消息, 等待处理.
+
+## 结果
+
+```java
+2022-03-22 10:02:58.785  INFO 42356 --- [ntainer#0-0-C-1] m.c.LotteryActivityPartakeRecordListener : 消费MQ消息，异步扣减活动库存 message：{"activityId":100001,"stockCount":100,"stockSurplusCount":99,"uId":"xiaofuge"}
+2022-03-22 10:02:58.799  INFO 42356 --- [ntainer#0-0-C-1] m.c.LotteryActivityPartakeRecordListener : 消费MQ消息，异步扣减活动库存 message：{"activityId":100001,"stockCount":100,"stockSurplusCount":98,"uId":"xiaofuge"}
+2022-03-22 10:04:23.884  INFO 42356 --- [ntainer#0-0-C-1] m.c.LotteryActivityPartakeRecordListener : 消费MQ消息，异步扣减活动库存 message：{"activityId":100001,"stockCount":100,"stockSurplusCount":97,"uId":"xiaofuge"}
+2022-
+```
+
+```java
+2022-03-22 10:04:24.058  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：1 tbIdx：1
+2022-03-22 10:04:24.082  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：xiaofuge 发奖结果：{"code":1,"info":"发奖成功","uId":"xiaofuge"}
+
+```
+
+```java
+2022-03-22 10:21:01.030  INFO 42356 --- [adPool-43181356] c.xxl.job.core.executor.XxlJobExecutor   : >>>>>>>>>>> xxl-job regist JobThread success, jobId:3, handler:com.xxl.job.core.handler.impl.MethodJobHandler@7d133fb7[class cn.leoil.lottery.application.worker.LotteryXxlJob#lotteryOrderMQStateJobHandler]
+2022-03-22 10:21:01.044  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 开始 params：["1","2"]
+2022-03-22 10:21:01.072  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：0 扫描数：0
+2022-03-22 10:21:01.090  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：1 扫描数：0
+2022-03-22 10:21:01.109  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：2 扫描数：0
+2022-03-22 10:21:01.127  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：3 扫描数：0
+2022-03-22 10:21:01.151  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：0 扫描数：4
+2022-03-22 10:21:01.156  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444540456057864192,"prizeContent":"Code","prizeId":"3","prizeName":"ipad","prizeType":1,"uId":"fustack"}
+
+```
+
+```java
+2022-03-22 10:21:01.240  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444541565086367744,"prizeContent":"Code","prizeId":"5","prizeName":"Book","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:01.240  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444810184030633984,"prizeContent":"Code","prizeId":"4","prizeName":"AirPods","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:01.240  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444820311156670464,"prizeContent":"Code","prizeId":"2","prizeName":"iphone","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:01.245  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:01.259  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：1 扫描数：0
+2022-03-22 10:21:01.263  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:01.270  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:01.277  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：2 扫描数：0
+2022-03-22 10:21:01.289  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:01.290  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:01.293  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：3 扫描数：0
+2022-03-22 10:21:01.293  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 完成 param：["1","2"]
+2022-03-22 10:21:01.308  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:01.310  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:01.327  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:03.100  INFO 42356 --- [adPool-43181356] c.xxl.job.core.executor.XxlJobExecutor   : >>>>>>>>>>> xxl-job regist JobThread success, jobId:2, handler:com.xxl.job.core.handler.impl.MethodJobHandler@1291aab5[class cn.leoil.lottery.application.worker.LotteryXxlJob#lotteryActivityStateJobHandler]
+2022-03-22 10:21:03.101  INFO 42356 --- [      Thread-26] c.l.l.application.worker.LotteryXxlJob   : 扫描活动状态 Begin
+2022-03-22 10:21:03.135  INFO 42356 --- [      Thread-26] c.l.l.application.worker.LotteryXxlJob   : 扫描活动状态 End
+2022-03-22 10:21:07.955  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 开始 params：["1","2"]
+2022-03-22 10:21:07.972  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：0 扫描数：0
+2022-03-22 10:21:07.988  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：1 扫描数：0
+2022-03-22 10:21:08.005  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：2 扫描数：0
+2022-03-22 10:21:08.022  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：1 扫描表：3 扫描数：0
+2022-03-22 10:21:08.038  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：0 扫描数：4
+2022-03-22 10:21:08.039  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444540456057864192,"prizeContent":"Code","prizeId":"3","prizeName":"ipad","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:08.039  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444541565086367744,"prizeContent":"Code","prizeId":"5","prizeName":"Book","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:08.039  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444810184030633984,"prizeContent":"Code","prizeId":"4","prizeName":"AirPods","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:08.039  INFO 42356 --- [      Thread-25] c.l.l.a.mq.producer.KafkaProducer        : 发送MQ消息 topic：lottery_invoice bizId：fustack message：{"orderId":1444820311156670464,"prizeContent":"Code","prizeId":"2","prizeName":"iphone","prizeType":1,"uId":"fustack"}
+2022-03-22 10:21:08.041  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:08.056  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：1 扫描数：0
+2022-03-22 10:21:08.058  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:08.060  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:08.072  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：2 扫描数：0
+2022-03-22 10:21:08.077  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:08.079  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:08.089  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 扫描库：2 扫描表：3 扫描数：0
+2022-03-22 10:21:08.089  INFO 42356 --- [      Thread-25] c.l.l.application.worker.LotteryXxlJob   : 扫描用户抽奖奖品发放MQ状态[Table = 2*4] 完成 param：["1","2"]
+2022-03-22 10:21:08.098  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:21:08.100  INFO 42356 --- [ntainer#1-4-C-1] c.b.m.d.r.s.i.DBRouterStrategyHashCode   : 数据库路由 dbIdx：2 tbIdx：0
+2022-03-22 10:21:08.120  INFO 42356 --- [ntainer#1-4-C-1] c.l.l.a.m.c.LotteryInvoiceListener       : 消费MQ消息，完成 topic：lottery_invoice bizId：fustack 发奖结果：{"code":1,"info":"发奖成功","uId":"fustack"}
+2022-03-22 10:22:36.350  INFO 42356 --- [      Thread-26] com.xxl.job.core.thread.JobThread        : >>>>>>>>>>> xxl-job JobThread stoped, hashCode:Thread[Thread-26,10,main]
+2022-03-22 10:22:41.315  INFO 42356 --- [      Thread-25] com.xxl.job.core.thread.JobThread        : >>>>>>>>>>> xxl-job JobThread stoped, hashCode:Thread[Thread-25,10,main]
+
+```
 
 
 
+# 3-02 运营后台 活动列表数据展示
 
 
+
+# 问题收集
+
+* 数据库的缓存不一致如何处理: 
+
+  缓存一致性: 根本解决方法: 加锁
+
+  只要你用了缓存，一致性不可完全避免
+  只要不要把脏数据放缓存一直没刷就还好。剩下的就是解决不一致窗口时间，如何让他变小
+
+  
+
+  延时双删是个比较好的处理方案。简单，快速，而且一般没啥问题。也会有不一致问题出现, 但超级小概率事件在中小公司投入研发成本大于收益，可以忽略。
+
+  携程的处理方案: https://www.infoq.cn/article/ahsatgossvmtpzg3rafb
+
+
+  用canal + kafka 来处理缓存也是种方案，但是要注意如果分库了之后可能要注意数据库延时同步导致的查询到旧数据的问题	要设置合理的消费时间。
+
+  
+
+  redis 为什么使用槽同步，将每个key在哪个机器上存储在每台机器上不行吗？
+
+  集群内部都需要gossip交互
+
+  主要就是每台机器要存储一份槽空间，而且是基于gossip通信，这样可以让每台机器传输信息量在O(1)不会导致网络风暴
+
+  
+
+  主从解决并发量问题
+  集群解决数据量问题
+
+  
+
+  
+
+* s
+
+
+
+# 相关问题;
+
+![](https://i0.hdslb.com/bfs/album/4640e5c3674f9eefaa87d4df1f744e5999d4a40d.png)
+
+![](https://i0.hdslb.com/bfs/album/a8974f15c50a81ac4cce9d061dc9758550a9cf7b.png)
+
+![](https://i0.hdslb.com/bfs/album/22dcf0f8b6017d0cb0fa0e28faebb72538470ec4.png)

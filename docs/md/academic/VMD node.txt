@@ -1,0 +1,14 @@
+pbc set {10 10 10 } -all 
+
+
+pbc box -center unitcell
+pbc box -center com
+pbc box -width 2.0 -color black -center com
+
+pbc wrap -center com  -all
+pbc wrap -all -center orgin
+
+
+pbc wrap -compound fragment/chain/redisule/
+
+pbc join fragment -all
